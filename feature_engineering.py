@@ -14,7 +14,7 @@ from time import time
 
 def load_and_filter(competition_id: int,
                     season_id: int,
-                    team_name: str=None) -> pd.DataFrame:
+                    team_name: str = None) -> pd.DataFrame:
     """Loads and filters statsbomb matches."""
     matches = sb.matches(competition_id=competition_id,
                          season_id=season_id).sort_values(by="match_date")
@@ -22,7 +22,9 @@ def load_and_filter(competition_id: int,
         matches = matches[(matches.home_team == team_name) |
                           (matches.away_team == team_name)]
     if matches.empty:
-        raise ValueError(f"""Matches is empty. Please check combination of {competition_id = }, {season_id = }, and {team_name = }""")
+        raise ValueError(
+            f"""Matches is empty. Please check combination of {competition_id = }, {season_id = }, and {team_name = }"""
+        )
     return matches
 
 
@@ -39,10 +41,11 @@ def create_zone_model(zone_midpoints: Dict[Any, Tuple[int]]):
 
 
 # Features that create columns
-def zone_finder(point: List[int],
-                zone_model: KMeans,
-                zone_midpoints: Dict[Any, Tuple[int]],
-                ):
+def zone_finder(
+    point: List[int],
+    zone_model: KMeans,
+    zone_midpoints: Dict[Any, Tuple[int]],
+):
     """Finds which zone a point is in using Kmeans.
 
     Args:
@@ -53,24 +56,27 @@ def zone_finder(point: List[int],
     labels = list(zone_midpoints.keys())
     centres = np.array(list(zone_midpoints.values()))
     label_pred = zone_model.predict(X=centres)
-    cluster_to_label = {pred : label for pred, label in zip(label_pred, labels)}
+    cluster_to_label = {pred: label for pred, label in zip(label_pred, labels)}
     points_pred = zone_model.predict(point)[0]
     zone = cluster_to_label[points_pred]
     return zone
 
 
-def event_zone(events: pd.DataFrame,
-            _types: List[str],
-            zone_model: KMeans,
-            zone_midpoints: Dict[Any, Tuple[int]],
-            col_name: str) -> pd.DataFrame:
+def event_zone(events: pd.DataFrame, _types: List[str], zone_model: KMeans,
+               zone_midpoints: Dict[Any, Tuple[int]],
+               col_name: str) -> pd.DataFrame:
     mask = events["type"].isin(_types)
     events_valid = events[mask]
     events[col_name] = ""
-    events.loc[mask, col_name] = events_valid.location.apply(zone_finder, args=[zone_model, zone_midpoints])
+    events.loc[mask, col_name] = events_valid.location.apply(
+        zone_finder, args=[zone_model, zone_midpoints])
     encoder = OneHotEncoder(sparse=False)
-    zone_one_hot = encoder.fit_transform(events[col_name].values.reshape(-1, 1))
-    _ = {col_name + "_" + z : col for z, col in zip(encoder.categories_[0], zone_one_hot.T) if z != ""}
+    zone_one_hot = encoder.fit_transform(events[col_name].values.reshape(
+        -1, 1))
+    _ = {
+        col_name + "_" + z: col
+        for z, col in zip(encoder.categories_[0], zone_one_hot.T) if z != ""
+    }
     zone_df = pd.DataFrame(_)
     events = pd.concat([events, zone_df], axis=1)
     events = events.drop(col_name, axis=1)
@@ -96,46 +102,49 @@ def filter_and_apply(events: pd.DataFrame,
 
 
 def pass_is_sideways(pass_angle: float):
-    if np.pi/4 < np.abs(pass_angle) < 3*np.pi/4:
+    if np.pi / 4 < np.abs(pass_angle) < 3 * np.pi / 4:
         return True
     return False
 
 
 def pass_is_forward(pass_angle: float):
-    if np.abs(pass_angle) <= np.pi/4:
+    if np.abs(pass_angle) <= np.pi / 4:
         return True
     return False
 
 
 def pass_is_backward(pass_angle: float):
-    if np.abs(pass_angle) >= 3*np.pi/4:
+    if np.abs(pass_angle) >= 3 * np.pi / 4:
         return True
     return False
 
 
 def pass_is_long(pass_distance: float):
-    if pass_distance > 60: # TODO tune
+    if pass_distance > 60:  # TODO tune
         return True
     return False
 
 
 def pass_is_medium(pass_distance: float):
-    if 18 < pass_distance <= 60: # TODO tune
+    if 18 < pass_distance <= 60:  # TODO tune
         return True
     return False
 
 
 def pass_is_short(pass_distance: float):
-    if pass_distance <= 18: # TODO tune
+    if pass_distance <= 18:  # TODO tune
         return True
     return False
 
 
 # Aggregation features
-def normalised_location_count(events: pd.DataFrame,
-                              _type: str,
-                              loc_col_names: List[str],
-                              ) -> Dict[str, int]:
+# TODO time on ball features
+# TODO create tests for features
+def normalised_location_count(
+    events: pd.DataFrame,
+    _type: str,
+    loc_col_names: List[str],
+) -> Dict[str, int]:
     """Creates counts of where events are and divides by total number of events"""
     mask = events["type"] == _type
     # Pick events of relevant type
@@ -143,13 +152,14 @@ def normalised_location_count(events: pd.DataFrame,
     # Aggregate events_valid
     events_location = events_valid[loc_col_names]
     ratio_events_location = events_location.mean(axis=0)
-    ratios = {f"ratio_{_type}_{col}" : v for col, v in zip(loc_col_names, ratio_events_location.values)}
+    ratios = {
+        f"ratio_{_type}_{col}": v
+        for col, v in zip(loc_col_names, ratio_events_location.values)
+    }
     return ratios
 
 
-def normalised_count(events: pd.DataFrame,
-                     _type: str
-                     ) -> int:
+def normalised_count(events: pd.DataFrame, _type: str) -> int:
     """Filters event_types to type, and divides by tot_events"""
     tot_events = events.shape[0]
     mask = events["type"] == _type
@@ -157,9 +167,7 @@ def normalised_count(events: pd.DataFrame,
     return n_events / tot_events
 
 
-def _count(events: pd.DataFrame,
-           _type: str
-           ) -> int:
+def _count(events: pd.DataFrame, _type: str) -> int:
     mask = events["type"] == _type
     n_events = events[mask].shape[0]
     return n_events
@@ -258,14 +266,13 @@ def tactics():
 
 
 def main(args):
-    matches = load_and_filter(args.competition_id,
-                              args.season_id,
+    matches = load_and_filter(args.competition_id, args.season_id,
                               args.team_name)
     # TODO get config working
     # with open("./features_match.yaml", "r") as file:
     #     config = load(file, Loader=SafeLoader)
     #     attack_config = config["attack"]
-    
+
     # TODO function for single match (filter to match_id)
     # TODO function for single team (filter to team_id)
     # TODO save time by loading from file rather than downloading
@@ -286,63 +293,68 @@ def main(args):
     vertical_model = create_zone_model(VERTICAL_MIDPOINTS)
     matches_events = event_zone(matches_events,
                                 ["Pass", "Shot", "Dribble", "Pressure"],
-                                horizontal_model,
-                                HORIZONTAL_MIDPOINTS,
+                                horizontal_model, HORIZONTAL_MIDPOINTS,
                                 "horizontal_zone")
     matches_events = event_zone(matches_events,
                                 ["Pass", "Shot", "Dribble", "Pressure"],
-                                vertical_model,
-                                VERTICAL_MIDPOINTS,
+                                vertical_model, VERTICAL_MIDPOINTS,
                                 "vertical_zone")
 
     # Pass events
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_sideways,
-                                    "pass_angle",
-                                    "pass_sideways")
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_forward,
-                                    "pass_angle",
-                                    "pass_forwards")
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_backward,
-                                    "pass_angle",
-                                    "pass_backwards")
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_long,
-                                    "pass_length",
-                                    "pass_long")
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_medium,
-                                    "pass_length",
-                                    "pass_medium")
-    matches_events = filter_and_apply(matches_events,
-                                    ["Pass"],
-                                    pass_is_short,
-                                    "pass_length",
-                                    "pass_short")
+    matches_events = filter_and_apply(matches_events, ["Pass"],
+                                      pass_is_sideways, "pass_angle",
+                                      "pass_sideways")
+    matches_events = filter_and_apply(matches_events, ["Pass"],
+                                      pass_is_forward, "pass_angle",
+                                      "pass_forwards")
+    matches_events = filter_and_apply(matches_events, ["Pass"],
+                                      pass_is_backward, "pass_angle",
+                                      "pass_backwards")
+    matches_events = filter_and_apply(matches_events, ["Pass"], pass_is_long,
+                                      "pass_length", "pass_long")
+    matches_events = filter_and_apply(matches_events, ["Pass"], pass_is_medium,
+                                      "pass_length", "pass_medium")
+    matches_events = filter_and_apply(matches_events, ["Pass"], pass_is_short,
+                                      "pass_length", "pass_short")
 
-    hor_loc_col_names = [f"horizontal_zone_{k}" for k in HORIZONTAL_MIDPOINTS.keys()]
-    ver_loc_col_names = [f"vertical_zone_{k}" for k in VERTICAL_MIDPOINTS.keys()]
+    hor_loc_col_names = [
+        f"horizontal_zone_{k}" for k in HORIZONTAL_MIDPOINTS.keys()
+    ]
+    ver_loc_col_names = [
+        f"vertical_zone_{k}" for k in VERTICAL_MIDPOINTS.keys()
+    ]
 
     matches_events_groupby = matches_events.groupby(["match_id", "team"])
     # TODO provide other groupby's e.g. possession number, rolling time
 
     # Location Aggregations
-    pass_horizontal_ratios = matches_events_groupby.apply(normalised_location_count, _type="Pass", loc_col_names=hor_loc_col_names).apply(pd.Series)
-    pass_vertical_ratios = matches_events_groupby.apply(normalised_location_count, _type="Pass", loc_col_names=ver_loc_col_names).apply(pd.Series)
+    pass_horizontal_ratios = matches_events_groupby.apply(
+        normalised_location_count,
+        _type="Pass",
+        loc_col_names=hor_loc_col_names).apply(pd.Series)
+    pass_vertical_ratios = matches_events_groupby.apply(
+        normalised_location_count,
+        _type="Pass",
+        loc_col_names=ver_loc_col_names).apply(pd.Series)
 
     # TODO make useful shot locations model
-    # shot_horizontal_ratios = matches_events_groupby.apply(normalised_location_count, _type="Shot", loc_col_names=hor_loc_col_names).apply(pd.Series)
-    # shot_vertical_ratios = matches_events_groupby.apply(normalised_location_count, _type="Shot", loc_col_names=ver_loc_col_names).apply(pd.Series)
+    # shot_horizontal_ratios = matches_events_groupby.apply(
+    #     normalised_location_count,
+    #     _type="Shot",
+    #     loc_col_names=hor_loc_col_names).apply(pd.Series)
+    # shot_vertical_ratios = matches_events_groupby.apply(
+    #     normalised_location_count,
+    #     _type="Shot",
+        # loc_col_names=ver_loc_col_names).apply(pd.Series)
 
-    pressure_horizontal_ratios = matches_events_groupby.apply(normalised_location_count, _type="Pressure", loc_col_names=hor_loc_col_names).apply(pd.Series)
-    pressure_vertical_ratios = matches_events_groupby.apply(normalised_location_count, _type="Pressure", loc_col_names=ver_loc_col_names).apply(pd.Series)
+    pressure_horizontal_ratios = matches_events_groupby.apply(
+        normalised_location_count,
+        _type="Pressure",
+        loc_col_names=hor_loc_col_names).apply(pd.Series)
+    pressure_vertical_ratios = matches_events_groupby.apply(
+        normalised_location_count,
+        _type="Pressure",
+        loc_col_names=ver_loc_col_names).apply(pd.Series)
 
     # Count aggregations
     pass_count = matches_events_groupby.apply(_count, _type="Pass")
@@ -354,19 +366,25 @@ def main(args):
     # TODO replace strings with constants
 
     # Normalised count aggregations
-    pass_normalised_count = matches_events_groupby.apply(normalised_count, _type="Pass")
+    pass_normalised_count = matches_events_groupby.apply(normalised_count,
+                                                         _type="Pass")
     pass_normalised_count.name = "pass_normalised_count"
-    shot_normalised_count = matches_events_groupby.apply(normalised_count, _type="Shot")
+    shot_normalised_count = matches_events_groupby.apply(normalised_count,
+                                                         _type="Shot")
     shot_normalised_count.name = "shot_normalised_count"
-    dribble_normalised_count = matches_events_groupby.apply(normalised_count, _type="Dribble")
+    dribble_normalised_count = matches_events_groupby.apply(normalised_count,
+                                                            _type="Dribble")
     dribble_normalised_count.name = "dribble_normalised_count"
 
     # Extra features
-    pass_direction_forward_ratio = matches_events_groupby.apply(direction_forward_ratio)
+    pass_direction_forward_ratio = matches_events_groupby.apply(
+        direction_forward_ratio)
     pass_direction_forward_ratio.name = "pass_direction_forward_ratio"
-    pass_direction_sideways_ratio = matches_events_groupby.apply(direction_sideways_ratio)
+    pass_direction_sideways_ratio = matches_events_groupby.apply(
+        direction_sideways_ratio)
     pass_direction_sideways_ratio.name = "pass_direction_sideways_ratio"
-    pass_direction_backward_ratio = matches_events_groupby.apply(direction_backward_ratio)
+    pass_direction_backward_ratio = matches_events_groupby.apply(
+        direction_backward_ratio)
     pass_direction_backward_ratio.name = "pass_direction_backward_ratio"
 
     pass_short_ratio = matches_events_groupby.apply(distance_short_ratio)
@@ -376,9 +394,11 @@ def main(args):
     pass_long_ratio = matches_events_groupby.apply(distance_long_ratio)
     pass_long_ratio.name = "pass_long_ratio"
 
-    shot_aerial_won_ratio = matches_events_groupby.apply(_shot_aerial_won_ratio)
+    shot_aerial_won_ratio = matches_events_groupby.apply(
+        _shot_aerial_won_ratio)
     shot_aerial_won_ratio.name = "shot_aerial_won_ratio"
-    shot_first_time_ratio = matches_events_groupby.apply(_shot_first_time_ratio)
+    shot_first_time_ratio = matches_events_groupby.apply(
+        _shot_first_time_ratio)
     shot_first_time_ratio.name = "shot_first_time_ratio"
 
     pass_success_ratio = matches_events_groupby.apply(success_rate)
@@ -410,25 +430,41 @@ def main(args):
         shot_first_time_ratio,
         pass_success_ratio,
         pass_cross_ratio,
-        ]
-    
-    df_final = reduce(lambda left,right: pd.merge(left,right,on=["match_id", "team"]), join_dfs)
+    ]
+
+    df_final = reduce(
+        lambda left, right: pd.merge(left, right, on=["match_id", "team"]),
+        join_dfs)
+    # TODO join scores
     end = time()
-    print("Time taken: ", end-start)
+    print("Time taken: ", end - start)
     os.makedirs(args.out_dir, exist_ok=True)
     df_final.to_csv(f"{args.out_dir}/{args.out_name}")
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     # Add args
-    parser.add_argument("--team_name", type=str, help="Calculate features for a team",
+    parser.add_argument("--team_name",
+                        type=str,
+                        help="Calculate features for a team",
                         required=False)
-    parser.add_argument("--competition_id", type=int, help="Which competition is it", default=37)
-    parser.add_argument("--season_id", type=int, help="Calculate features for a season", default=90)
+    parser.add_argument("--competition_id",
+                        type=int,
+                        help="Which competition is it",
+                        default=37)
+    parser.add_argument("--season_id",
+                        type=int,
+                        help="Calculate features for a season",
+                        default=90)
     # parser.add_argument("--config_file", type=str, help="Path to config file.", default="./config.yaml")
-    parser.add_argument("--out_dir", type=str, help="Location to save output file",
+    parser.add_argument("--out_dir",
+                        type=str,
+                        help="Location to save output file",
                         default="./output")
-    parser.add_argument("--out_name", type=str, help="Name of output file",
+    parser.add_argument("--out_name",
+                        type=str,
+                        help="Name of output file",
                         default="aggregated_features.csv")
     args = parser.parse_args()
 
