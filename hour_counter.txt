@@ -67,4 +67,5 @@ Got pass angles and distances binning done
 Get feature engineering working and check it
 17:14
 Got hardcoded feature engineering pipeline working
-
+17:48
+Basic features for one WSL season hardcoded, processed, and examined in notebook
