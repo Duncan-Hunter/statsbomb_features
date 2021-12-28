@@ -28,48 +28,41 @@ def load_and_filter(competition_id: int,
     return matches
 
 
-def create_zone_model(zone_midpoints: Dict[Any, Tuple[int]]):
-    """Creates and fits KMeans using midpoints.
-
-    Args:
-        zone_midpoints: Dict of label : midpoint describing zone model."""
-    centres = np.array(list(zone_midpoints.values()))
-    labels = list(zone_midpoints.keys())
-    zone_model = KMeans(n_clusters=len(labels))
-    label_pred = zone_model.fit_predict(X=centres)
-    return zone_model
-
-
 # Features that create columns
 def zone_finder(
-    point: List[int],
-    zone_model: KMeans,
+    point: List[float],
     zone_midpoints: Dict[Any, Tuple[int]],
 ):
     """Finds which zone a point is in using Kmeans.
 
     Args:
         point: location on pitch as [x, y]
-        zone_model: KMeans (created with create_zone_model)
         zone_midpoints: Dict of label : midpoint describing zone model."""
-    point = np.array(point).reshape((1, -1))
-    labels = list(zone_midpoints.keys())
+
+    point = np.array(point)
     centres = np.array(list(zone_midpoints.values()))
-    label_pred = zone_model.predict(X=centres)
-    cluster_to_label = {pred: label for pred, label in zip(label_pred, labels)}
-    points_pred = zone_model.predict(point)[0]
-    zone = cluster_to_label[points_pred]
+    labels = list(zone_midpoints.keys())
+    distances = np.linalg.norm(point - centres, axis=1)
+    zone = labels[np.argmin(distances)]
     return zone
 
 
-def event_zone(events: pd.DataFrame, _types: List[str], zone_model: KMeans,
+def event_zone(events: pd.DataFrame, _types: List[str],
                zone_midpoints: Dict[Any, Tuple[int]],
                col_name: str) -> pd.DataFrame:
+    """Transforms column of events to encoded data.
+
+    Args:
+        events: events dataframe.
+        _types: Types of event to find locations for.
+        zone_midpoints: Dict of zones to use in encoding.
+        col_name: prefix for output column names.
+    """
     mask = events["type"].isin(_types)
     events_valid = events[mask]
     events[col_name] = ""
     events.loc[mask, col_name] = events_valid.location.apply(
-        zone_finder, args=[zone_model, zone_midpoints])
+        zone_finder, args=[zone_midpoints])
     encoder = OneHotEncoder(sparse=False)
     zone_one_hot = encoder.fit_transform(events[col_name].values.reshape(
         -1, 1))
@@ -279,7 +272,7 @@ def main(args):
 
     # Apply seems to be using parallel processing (>95% cpu usage)
     start = time()
-    events = matches.match_id.apply(sb.events)
+    events = matches.head(2).match_id.apply(sb.events)
     events = pd.concat(events.values)
     print("Finished downloading events")
     # Load events of all games into big dataframe
@@ -289,16 +282,12 @@ def main(args):
                               how="inner")
 
     # Create features like forward passes, location
-    horizontal_model = create_zone_model(HORIZONTAL_MIDPOINTS)
-    vertical_model = create_zone_model(VERTICAL_MIDPOINTS)
     matches_events = event_zone(matches_events,
                                 ["Pass", "Shot", "Dribble", "Pressure"],
-                                horizontal_model, HORIZONTAL_MIDPOINTS,
-                                "horizontal_zone")
+                                HORIZONTAL_MIDPOINTS, "horizontal_zone")
     matches_events = event_zone(matches_events,
                                 ["Pass", "Shot", "Dribble", "Pressure"],
-                                vertical_model, VERTICAL_MIDPOINTS,
-                                "vertical_zone")
+                                VERTICAL_MIDPOINTS, "vertical_zone")
 
     # Pass events
     matches_events = filter_and_apply(matches_events, ["Pass"],
@@ -345,7 +334,7 @@ def main(args):
     # shot_vertical_ratios = matches_events_groupby.apply(
     #     normalised_location_count,
     #     _type="Shot",
-        # loc_col_names=ver_loc_col_names).apply(pd.Series)
+    # loc_col_names=ver_loc_col_names).apply(pd.Series)
 
     pressure_horizontal_ratios = matches_events_groupby.apply(
         normalised_location_count,

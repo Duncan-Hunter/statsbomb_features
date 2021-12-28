@@ -54,14 +54,14 @@ def test_pass_direction():
     timestamp            00:00:02.638
     Name: 8, dtype: object
     """
-    assert pass_is_forward(test_pass_side) == 0
-    assert pass_is_backward(test_pass_side) == 0
-    assert pass_is_sideways(test_pass_side) == 1
+    assert pass_is_forward(test_pass_side["pass_angle"]) == 0
+    assert pass_is_backward(test_pass_side["pass_angle"]) == 0
+    assert pass_is_sideways(test_pass_side["pass_angle"]) == 1
     test_pass_back = test_match.loc[7]
-    assert pass_is_forward(test_pass_back) == 0
-    assert pass_is_backward(test_pass_back) == 1
-    assert pass_is_sideways(test_pass_back) == 0
+    assert pass_is_forward(test_pass_back["pass_angle"]) == 0
+    assert pass_is_backward(test_pass_back["pass_angle"]) == 1
+    assert pass_is_sideways(test_pass_back["pass_angle"]) == 0
     test_pass_forward = test_match.loc[9]
-    assert pass_is_forward(test_pass_forward) == 1
-    assert pass_is_backward(test_pass_forward) == 0
-    assert pass_is_sideways(test_pass_forward) == 0
+    assert pass_is_forward(test_pass_forward["pass_angle"]) == 1
+    assert pass_is_backward(test_pass_forward["pass_angle"]) == 0
+    assert pass_is_sideways(test_pass_forward["pass_angle"]) == 0
