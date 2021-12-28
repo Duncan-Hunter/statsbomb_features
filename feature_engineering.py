@@ -32,12 +32,15 @@ def load_and_filter(competition_id: int,
 def zone_finder(
     point: List[float],
     zone_midpoints: Dict[Any, Tuple[int]],
-):
+) -> Any:
     """Finds which zone a point is in using Kmeans.
 
     Args:
         point: location on pitch as [x, y]
-        zone_midpoints: Dict of label : midpoint describing zone model."""
+        zone_midpoints: Dict of label : midpoint describing zone model.
+
+    Returns:
+        zone: Label of zone."""
 
     point = np.array(point)
     centres = np.array(list(zone_midpoints.values()))
@@ -50,13 +53,15 @@ def zone_finder(
 def event_zone(events: pd.DataFrame, _types: List[str],
                zone_midpoints: Dict[Any, Tuple[int]],
                col_name: str) -> pd.DataFrame:
-    """Transforms column of events to encoded data.
+    """Transforms column of events to one-hot encoded data.
 
     Args:
         events: events dataframe.
         _types: Types of event to find locations for.
         zone_midpoints: Dict of zones to use in encoding.
         col_name: prefix for output column names.
+    Returns:
+        events: events dataframe with one-hot encoded features.
     """
     mask = events["type"].isin(_types)
     events_valid = events[mask]
@@ -84,8 +89,18 @@ def filter_and_apply(events: pd.DataFrame,
                      out_col_empty: Any = 0) -> pd.DataFrame:
     """Filters events to _types and applies func.
 
-    Used to only apply function to relevant types, for feature engineering
-    not aggregating.
+    Used to only apply function to relevant types.
+
+    Args:
+        events: Events dataframe.
+        _types: Types to apply function to.
+        func: function to apply.
+        func_col: column of events to apply function to.
+        out_col_name: Name of column to create.
+        out_col_empty: Value for uncalculated rows.
+
+    Returns:
+        events: Events dataframe with new column.
     """
     mask = events["type"].isin(_types)
     events_valid = events[mask]
@@ -94,6 +109,7 @@ def filter_and_apply(events: pd.DataFrame,
     return events
 
 
+# name of func is explanatory
 def pass_is_sideways(pass_angle: float):
     if np.pi / 4 < np.abs(pass_angle) < 3 * np.pi / 4:
         return True
@@ -138,7 +154,16 @@ def normalised_location_count(
     _type: str,
     loc_col_names: List[str],
 ) -> Dict[str, int]:
-    """Creates counts of where events are and divides by total number of events"""
+    """Creates counts of where events are and divides by total number of events.
+
+    Args:
+        events: Events dataframe.
+        _type: Type to apply to.
+        loc_col_names: Names of one-hot encoded zone columns.
+
+    Returns:
+        ratios: Dict of zone:percentage of events in.
+    """
     mask = events["type"] == _type
     # Pick events of relevant type
     events_valid = events[mask]
@@ -161,6 +186,7 @@ def normalised_count(events: pd.DataFrame, _type: str) -> int:
 
 
 def _count(events: pd.DataFrame, _type: str) -> int:
+    """Counts number of events of _type"""
     mask = events["type"] == _type
     n_events = events[mask].shape[0]
     return n_events
@@ -191,6 +217,7 @@ def direction_forward_ratio(events: pd.DataFrame) -> float:
 
 
 def direction_backward_ratio(events: pd.DataFrame) -> float:
+    """percentage of passes backward."""
     assert "pass_backwards" in events.columns
     mask = events["type"] == "Pass"
     pass_events = events[mask]
@@ -198,6 +225,7 @@ def direction_backward_ratio(events: pd.DataFrame) -> float:
 
 
 def direction_sideways_ratio(events: pd.DataFrame) -> float:
+    """percentage of passes sideways"""
     assert "pass_sideways" in events.columns
     mask = events["type"] == "Pass"
     pass_events = events[mask]
