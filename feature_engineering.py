@@ -241,7 +241,7 @@ def high_pass_ratio(events: pd.DataFrame) -> float:
     n_high_pass_events = high_pass_events.shape[0]
     return n_high_pass_events / tot_pass_events
 
-
+# TODO configure pass lengths
 def distance_short_ratio(events: pd.DataFrame) -> float:
     """Filters to pass and finds mean of pass_short"""
     mask = events["type"] == "Pass"
@@ -427,8 +427,8 @@ def main(args):
     join_dfs = [
         pass_horizontal_ratios,
         pass_vertical_ratios,
-        # shot_horizontal_ratios,
-        # shot_vertical_ratios,
+        shot_horizontal_ratios,
+        shot_vertical_ratios,
         pressure_horizontal_ratios,
         pressure_vertical_ratios,
         pass_count,

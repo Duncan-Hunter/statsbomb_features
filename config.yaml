@@ -1,22 +1,5 @@
-# count: sum of events in game
-# location_count: sum of events in an area of the pitch
-# norm_count: count of events / total number of events
-# direction_count: count of events in direction (forward, backwards, sideways)
-# distance_count: count of events that are short, medium, long
-# success_average: average success rate
-# aerial_count: number of events in the air
-# norm_aerial_count: average
-
-# normalised locations of ... means number of events taken in an area / total number of events
-# Aim is to tell us relatively where the events are done
-
-# Columns which are derived from event information
-# Columns which are derived from event types
-
-# In the python code we can read a list of feature names from a yaml and process accordingly.
-
-
-  # These features can be derived by groupby the "Type" column and aggregating
+# NOTE: unused and incomplete
+# This is what I thought the YAML config would look like - it's a bit of a nightmare.
 attack:
   Aggregated:
     Dribble: 
