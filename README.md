@@ -1,5 +1,6 @@
 # StatsBomb event aggregation
 ## For creation of playing style models
+Creator: Duncan Hunter
 
 #### Installation
 To make use of `feature_engineering.py`, the required packages can be installed with:
