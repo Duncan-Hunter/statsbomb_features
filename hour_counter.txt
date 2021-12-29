@@ -71,3 +71,9 @@ Got hardcoded feature engineering pipeline working
 Basic features for one WSL season hardcoded, processed, and examined in notebook
 ~9 hrs 40min
 Next up is cleanup, docs, testing, basic cluster model?
+
+28/12
+Added some docstrings, modelling examples with features
+
+29/12
+Added readme, finishing up.
