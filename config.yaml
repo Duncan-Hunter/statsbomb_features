@@ -1,55 +1,106 @@
 # NOTE: unused and incomplete
 # This is what I thought the YAML config would look like - it's a bit of a nightmare.
-attack:
+
+features:
   Aggregated:
     Dribble: 
-      features: ["normalised_location_count", "normalised_count", "count"]
+      features: 
+        - "normalised_count"
+        - "count"
     Shot:
       types: ["Open Play", "Corner"]
-      features: ["normalised_location_count", "normalised_count", "shot_aerial_won_ratio", "shot_first_time_ratio"]
+      features:
+        - "normalised_location_count"
+        - "normalised_count"
+        - "shot_aerial_won_ratio"
+        - "shot_first_time_ratio"
+      location_models:
+        - around_the_box
     Pass:
-      types: [Null, "Intercept"]
-      features: [
-        "normalised_location_count",
-        "normalised_count",
-        "count",
-        "direction_forward_ratio", # percentage of passes forward
-        "direction_backward_ratio", # percentage of passes backward
-        "direction_sideways_ratio", # percentage of passes sideways
-        "distance_short_ratio", # what percentage of passes are short
-        "distance_medium_ratio", # medium
-        "distance_long_ratio", # long
-        "success_rate",
-        "high_pass_ratio", 
-        "cross_ratio" # percentage of passes that are crosses
-      ]
+      types: [Null]
+      features:
+        - "normalised_location_count"
+        - "normalised_count"
+        - "count"
+        - "direction_forward_ratio" # percentage of passes forward
+        - "direction_backward_ratio" # percentage of passes backward
+        - "direction_sideways_ratio" # percentage of passes sideways
+        - "distance_short_ratio" # what percentage of passes are short
+        - "distance_medium_ratio" # medium
+        - "distance_long_ratio" # long
+        - "success_rate"
+        - "high_pass_ratio" 
+        - "cross_ratio" # percentage of passes that are crosses
+      location_models:
+        - horizontal_thirds
+        - vertical_thirds
+    Duel:
+      features:
+        - "count"
+        - "normalised_count"
+        - "normalised_location_count"
+      location_models:
+        - vertical_thirds
+    Ball Recovery:
+      features:
+        - "count"
+        - "normalised_count"
+        - "normalised_location_count"
+      location_models:
+        - vertical_thirds
+    Pressure:
+      features:
+        - "count"
+        - "normalised_count"
+        - "normalised_location_count"
+      location_models:
+        - vertical_fifths
+        - horizontal_thirds
+    Foul Committed:
+      features:
+        - "count"
+        - "normalised_count"
+        - "normalised_location_count"
+      location_models:
+        - vertical_fifths
+    Clearance:
+      features:
+        - "count"
+        - "normalised_count"
+        - "normalised_location_count"
+      location_models:
+        - vertical_fifths
   Non-aggregated:
     - "tactics"  # most common tactic
 
-defense:
-  # - Ball Recovery
-  - Duel:
-    features:
-      - count
-      - normalised_count
-      - normalised_location_count
-  - Ball Recovery:
-    - features:
-      - count
-      - normalised_count
-      - normalised_location_count
-  - Pressure:
-    - features:
-      - count
-      - normalised_count
-      - normalised_location_count
-  - Foul Committed:
-    - features:
-      - count
-      - normalised_count
-      - normalised_location_count
-  - Clearance:
-    - features:
-      - count
-      - normalised_count
-      - normalised_location_count
+location_models:
+  vertical_fifths:
+    midpoints:
+      "back": [0, 40]
+      "back_middle": [30, 40]
+      "middle": [60, 40]
+      "middle_forward": [90, 40]
+      "forward": [120, 40]
+    columns_prefix: "vertical_fifths_zone"
+  vertical_thirds:
+    midpoints:
+      "back": [0, 40]
+      "middle": [60, 40]
+      "forward": [120, 40]
+    column_prefix: "vertical_thirds_zone"
+  horizontal_thirds:
+    midpoints:
+      "left": [60, 0]
+      "middle": [60, 40]
+      "right": [60, 80]
+    column_prefix: "horizontal_thirds_zone"
+  around_the_box:
+    midpoints:
+      "near_goal": [120, 40]
+      "left_box_edge": [102, 18]
+      "right_box_edge": [102, 62]
+      "centre_box_edge": [102, 40]
+      "left_byline": [120, 18]
+      "right_byline": [120, 62]
+      "far_out": [60, 40]
+    column_prefix: "around_the_box_zone"

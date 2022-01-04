@@ -2,10 +2,10 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import OneHotEncoder
 import pandas as pd
 import numpy as np
-from typing import Dict, Tuple, List, Any
+from typing import Dict, Tuple, List, Any, Callable
 from argparse import ArgumentParser
 from statsbombpy import sb
-from constants import *
+from constants import FEATURE_FUNCTIONS, AGGREGATE_FUNCTIONS
 from yaml import load, SafeLoader
 from functools import reduce
 import os
@@ -26,6 +26,77 @@ def load_and_filter(competition_id: int,
             f"""Matches is empty. Please check combination of {competition_id = }, {season_id = }, and {team_name = }"""
         )
     return matches
+
+
+def extract_zone_model(location_config: Dict):
+    midpoints = location_config["midpoints"]
+    column_prefix = location_config["column_prefix"]
+    return midpoints, column_prefix
+
+
+def load_config(config_path: str) -> Dict:
+    with open("./config.yaml", "r") as myYaml:
+        config = load(myYaml, Loader=SafeLoader)
+    return config
+
+
+def apply_and_name(events_groupby: pd.DataFrame,
+                   func: Callable,
+                   name: str):
+    out_df = events_groupby.apply(func)
+    out_df.name = name
+    return out_df
+    
+
+# TODO rename these horrendous variables
+def apply_config(events: pd.DataFrame,
+                 config: Dict) -> pd.DataFrame:
+    """Applies the configuration to feature engineering."""
+
+    # Is there a good way to get rid of these loops?
+    # Iterating over Types of event in features
+    join_dfs = []
+    # TODO add groupby to config
+    events_groupby = events.groupby(["match_id", "team"])
+    for item in config["features"]["Aggregated"].items():
+        _type, attributes = item
+        col_prefix = _type.lower().replace(" ", "_")
+        features = attributes["features"]
+        # Add location zones
+        if "normalised_location_count" in features:
+            location_models = attributes["location_models"]
+            for model in location_models:
+                location_model = config["location_models"][model]
+                midpoints, column_prefix = extract_zone_model(location_model)
+                events = event_zone(events,
+                                    [_type],
+                                    midpoints,
+                                    column_prefix)
+        # Add features if needed then aggregate
+
+
+        for feature in features:
+            if feature in FEATURE_FUNCTIONS.keys():
+                func = FEATURE_FUNCTIONS[feature]["func"]
+                func_col = FEATURE_FUNCTIONS[feature]["func_col"]
+                out_col_name = FEATURE_FUNCTIONS[feature]["out_col_name"]
+                out_col_empty = FEATURE_FUNCTIONS[feature]["null_val"]
+                events = filter_and_apply(events,
+                                          [_type],
+                                          func,
+                                          func_col,
+                                          out_col_name,
+                                          out_col_empty
+                                          )
+            func = AGGREGATE_FUNCTIONS[feature]
+            out_df = apply_and_name(events_groupby, func, feature)
+            join_dfs.append(out_df)
+    df_final = reduce(
+        lambda left, right: pd.merge(left, right, on=["match_id", "team"]),
+        join_dfs)
+    return df_final
+            # Add feature if needed
+            # calculate feature
 
 
 # Features that create columns
@@ -185,14 +256,14 @@ def normalised_count(events: pd.DataFrame, _type: str) -> int:
     return n_events / tot_events
 
 
-def _count(events: pd.DataFrame, _type: str) -> int:
+def count_events(events: pd.DataFrame, _type: str) -> int:
     """Counts number of events of _type"""
     mask = events["type"] == _type
     n_events = events[mask].shape[0]
     return n_events
 
 
-def _shot_aerial_won_ratio(events: pd.DataFrame) -> float:
+def shot_aerial_won_ratio(events: pd.DataFrame) -> float:
     """Filters to shots, then calculates mean of shot_aerial_won"""
     mask = events["type"] == "Shot"
     shot_events = events[mask]
@@ -200,7 +271,7 @@ def _shot_aerial_won_ratio(events: pd.DataFrame) -> float:
     return shot_events["shot_aerial_won"].mean()
 
 
-def _shot_first_time_ratio(events: pd.DataFrame) -> float:
+def shot_first_time_ratio(events: pd.DataFrame) -> float:
     """Filters to shots, then calculates mean of shot_first_time"""
     mask = events["type"] == "Shot"
     shot_events = events[mask]
@@ -341,7 +412,7 @@ def main(args):
         f"vertical_zone_{k}" for k in VERTICAL_MIDPOINTS.keys()
     ]
 
-    matches_events_groupby = matches_events.groupby(["match_id", "team"])
+    matches_events_groupby = matches_events.groupby()
     # TODO provide other groupby's e.g. possession number, rolling time
 
     # Location Aggregations
@@ -374,11 +445,11 @@ def main(args):
         loc_col_names=ver_loc_col_names).apply(pd.Series)
 
     # Count aggregations
-    pass_count = matches_events_groupby.apply(_count, _type="Pass")
+    pass_count = matches_events_groupby.apply(count_events, _type="Pass")
     pass_count.name = "pass_count"
-    shot_count = matches_events_groupby.apply(_count, _type="Shot")
+    shot_count = matches_events_groupby.apply(count_events, _type="Shot")
     shot_count.name = "shot_count"
-    dribble_count = matches_events_groupby.apply(_count, _type="Dribble")
+    dribble_count = matches_events_groupby.apply(count_events, _type="Dribble")
     dribble_count.name = "dribble_count"
     # TODO replace strings with constants
 
@@ -411,12 +482,12 @@ def main(args):
     pass_long_ratio = matches_events_groupby.apply(distance_long_ratio)
     pass_long_ratio.name = "pass_long_ratio"
 
-    shot_aerial_won_ratio = matches_events_groupby.apply(
-        _shot_aerial_won_ratio)
-    shot_aerial_won_ratio.name = "shot_aerial_won_ratio"
-    shot_first_time_ratio = matches_events_groupby.apply(
-        _shot_first_time_ratio)
-    shot_first_time_ratio.name = "shot_first_time_ratio"
+    _shot_aerial_won_ratio = matches_events_groupby.apply(
+        shot_aerial_won_ratio)
+    _shot_aerial_won_ratio.name = "shot_aerial_won_ratio"
+    _shot_first_time_ratio = matches_events_groupby.apply(
+        shot_first_time_ratio)
+    _shot_first_time_ratio.name = "shot_first_time_ratio"
 
     pass_success_ratio = matches_events_groupby.apply(success_rate)
     pass_success_ratio.name = "pass_success_ratio"
