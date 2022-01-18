@@ -28,6 +28,19 @@ from statsbomb_features import *
 events = sb.events(3775648)
 pass_backward_ratio(events)
 ```
+#### Future features:
+- Locations
+    - Vertical Thirds, Fifths (maybe even arbitrary)
+    - Horizontal ...
+    - Grids
+- Time on ball
+- Combinatory features (e.g. forward passes in xy part of pitch)
+- Customisable distances/angles
+- Different groupby options
+- Better documentation
+- Handling of multiple matches
+
+#### Current features:
 
 The features aggregated are as follows :
  - counting of events of a type.
