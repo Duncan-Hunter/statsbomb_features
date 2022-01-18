@@ -27,116 +27,6 @@ def load_and_filter(competition_id: int,
     return matches
 
 
-def extract_zone_model(location_config: Dict):
-    midpoints = location_config["midpoints"]
-    column_prefix = location_config["column_prefix"]
-    return midpoints, column_prefix
-
-
-def load_config(config_path: str) -> Dict:
-    with open("./config.yaml", "r") as myYaml:
-        config = load(myYaml, Loader=SafeLoader)
-    return config
-
-
-    
-
-# TODO rename these horrendous variables
-# def apply_config(events: pd.DataFrame,
-#                  config: Dict) -> pd.DataFrame:
-#     """Applies the configuration to feature engineering."""
-
-#     # Is there a good way to get rid of these loops?
-#     # Iterating over Types of event in features
-#     join_dfs = []
-#     # TODO add groupby to config
-#     events_groupby = events.groupby(["match_id", "team"])
-#     for item in config["features"]["Aggregated"].items():
-#         _type, attributes = item
-#         col_prefix = _type.lower().replace(" ", "_")
-#         features = attributes["features"]
-#         # Add location zones
-#         if "normalised_location_count" in features:
-#             location_models = attributes["location_models"]
-#             for model in location_models:
-#                 location_model = config["location_models"][model]
-#                 midpoints, column_prefix = extract_zone_model(location_model)
-#                 events = event_zone(events,
-#                                     [_type],
-#                                     midpoints,
-#                                     column_prefix)
-#         # Add features if needed then aggregate
-
-
-#         for feature in features:
-#             if feature in CONSTANTS.FEATURE_FUNCTIONS.keys():
-#                 func = CONSTANTS.FEATURE_FUNCTIONS[feature]["func"]
-#             func = CONSTANTS.AGGREGATE_FUNCTIONS[feature]
-#             # TODO passing loc col names to func, in general args
-#             out_df = apply_and_name(events_groupby, func, _type, feature)
-#             join_dfs.append(out_df)
-
-#     df_final = reduce(
-#         lambda left, right: pd.merge(left, right, on=["match_id", "team"]),
-#         join_dfs)
-#     return df_final
-            # Add feature if needed
-            # calculate feature
-
-
-# Features that create columns
-def zone_finder(
-    point: List[float],
-    zone_midpoints: Dict[Any, Tuple[int]],
-) -> Any:
-    """Finds which zone a point is in using Kmeans.
-
-    Args:
-        point: location on pitch as [x, y]
-        zone_midpoints: Dict of label : midpoint describing zone model.
-
-    Returns:
-        zone: Label of zone."""
-
-    point = np.array(point)
-    centres = np.array(list(zone_midpoints.values()))
-    labels = list(zone_midpoints.keys())
-    distances = np.linalg.norm(point - centres, axis=1)
-    zone = labels[np.argmin(distances)]
-    return zone
-
-
-def event_zone(events: pd.DataFrame, _types: List[str],
-               zone_midpoints: Dict[Any, Tuple[int]],
-               location_model_name: str) -> pd.DataFrame:
-    """Transforms column of events to one-hot encoded data.
-
-    Args:
-        events: events dataframe.
-        _types: Types of event to find locations for.
-        zone_midpoints: Dict of zones to use in encoding.
-        col_name: prefix for output column names.
-    Returns:
-        events: events dataframe with one-hot encoded features.
-    """
-    mask = events["type"].isin(_types)
-    events_valid = events[mask]
-    events[location_model_name] = ""
-    events.loc[mask, location_model_name] = events_valid.location.apply(
-        zone_finder, args=[zone_midpoints])
-    encoder = OneHotEncoder(sparse=False)
-    zone_one_hot = encoder.fit_transform(events[location_model_name].values.reshape(
-        -1, 1))
-    _ = {
-        location_model_name + "_" + z: col
-        for z, col in zip(encoder.categories_[0], zone_one_hot.T) if z != ""
-    }
-    zone_df = pd.DataFrame(_)
-    events = pd.concat([events, zone_df], axis=1)
-    events = events.drop(location_model_name, axis=1)
-    return events
-
-
 def filter_and_apply(events: pd.DataFrame,
                      _types: List[str],
                      func,
@@ -174,6 +64,10 @@ def groupby_apply_name(events: pd.DataFrame,
     out = events_groupby.apply(func, _type=_type)
     out.name = col_name
     return out
+
+# The patter should be: 
+# Optional: Calculating something from the features as a column
+# Taking a statistical measure of it in a function
 
 # name of func is explanatory
 def _pass_is_sideways(pass_angle: float):
@@ -426,77 +320,3 @@ def pass_cross_ratio(events: pd.DataFrame) -> float:
     return pass_events["pass_cross"].mean()
 
 
-# TODO use this information
-def tactics():
-    pass
-
-
-def main(args):
-    matches = load_and_filter(args.competition_id, args.season_id,
-                              args.team_name)
-    # TODO get config working
-    # with open("./features_match.yaml", "r") as file:
-    #     config = load(file, Loader=SafeLoader)
-    #     attack_config = config["attack"]
-
-    # TODO function for single match (filter to match_id)
-    # TODO function for single team (filter to team_id)
-    # TODO save time by loading from file rather than downloading
-
-    # Apply seems to be using parallel processing (>95% cpu usage)
-    start = time()
-    events = matches.head(2).match_id.apply(sb.events)
-    events = pd.concat(events.values)
-    print("Finished downloading events")
-    # Load events of all games into big dataframe
-    matches_events = pd.merge(left=matches,
-                              right=events,
-                              on="match_id",
-                              how="inner")
-    config_path = os.path.join(args.config_dir, args.config_name)
-    print(f"{config_path=}")
-    config = load_config(config_path)
-    df_final = apply_config(matches_events, config)
-    # TODO join scores
-    end = time()
-    print("Time taken: ", end - start)
-    os.makedirs(args.out_dir, exist_ok=True)
-    df_final.to_csv(f"{args.out_dir}/{args.out_name}")
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    # Add args
-    parser.add_argument("--team_name",
-                        type=str,
-                        help="Calculate features for a team",
-                        required=False)
-    parser.add_argument("--competition_id",
-                        type=int,
-                        help="Which competition is it",
-                        default=37)
-    parser.add_argument("--season_id",
-                        type=int,
-                        help="Calculate features for a season",
-                        default=90)
-    parser.add_argument("--config_dir",
-                        type=str,
-                        help="Location of config file",
-                        default="./",
-                        required=False)
-    parser.add_argument("--config_name",
-                        type=str,
-                        help="Name of config file",
-                        default="config.yaml")
-    # parser.add_argument("--config_file", type=str, help="Path to config file.", default="./config.yaml")
-    parser.add_argument("--out_dir",
-                        type=str,
-                        help="Location to save output file",
-                        default="./output")
-    parser.add_argument("--out_name",
-                        type=str,
-                        help="Name of output file",
-                        default="aggregated_features.csv")
-    args = parser.parse_args()
-
-    main(args)
