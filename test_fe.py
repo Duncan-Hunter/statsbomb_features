@@ -1,4 +1,4 @@
-from feature_engineering import *
+from statsbomb_features import *
 
 def test_zone_finder():
     zone_midpoints = {1: (30, 40),
@@ -54,14 +54,14 @@ def test_pass_direction():
     timestamp            00:00:02.638
     Name: 8, dtype: object
     """
-    assert pass_is_forward(test_pass_side["pass_angle"]) == 0
-    assert pass_is_backward(test_pass_side["pass_angle"]) == 0
-    assert pass_is_sideways(test_pass_side["pass_angle"]) == 1
+    assert _pass_is_forward(test_pass_side["pass_angle"]) == 0
+    assert _pass_is_backward(test_pass_side["pass_angle"]) == 0
+    assert _pass_is_sideways(test_pass_side["pass_angle"]) == 1
     test_pass_back = test_match.loc[7]
-    assert pass_is_forward(test_pass_back["pass_angle"]) == 0
-    assert pass_is_backward(test_pass_back["pass_angle"]) == 1
-    assert pass_is_sideways(test_pass_back["pass_angle"]) == 0
+    assert _pass_is_forward(test_pass_back["pass_angle"]) == 0
+    assert _pass_is_backward(test_pass_back["pass_angle"]) == 1
+    assert _pass_is_sideways(test_pass_back["pass_angle"]) == 0
     test_pass_forward = test_match.loc[9]
-    assert pass_is_forward(test_pass_forward["pass_angle"]) == 1
-    assert pass_is_backward(test_pass_forward["pass_angle"]) == 0
-    assert pass_is_sideways(test_pass_forward["pass_angle"]) == 0
+    assert _pass_is_forward(test_pass_forward["pass_angle"]) == 1
+    assert _pass_is_backward(test_pass_forward["pass_angle"]) == 0
+    assert _pass_is_sideways(test_pass_forward["pass_angle"]) == 0
